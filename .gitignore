@@ -11,3 +11,4 @@ Cargo.lock
 
 # Remove emacs files
 *~
+**/target/
