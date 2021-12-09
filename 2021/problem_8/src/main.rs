@@ -3,7 +3,6 @@ use maplit::{hashmap, hashset};
 use std::collections::{HashMap, HashSet};
 use std::io;
 use std::io::BufRead;
-use std::iter::FromIterator;
 
 #[derive(Clone, Copy, PartialEq, Hash, Eq, Debug)]
 enum Pos {
@@ -15,17 +14,6 @@ enum Pos {
     BottomRight,
     Bottom,
 }
-
-
-static POS_VARIANTS: &[Pos] = &[
-    Pos::Top,
-    Pos::TopLeft,
-    Pos::TopRight,
-    Pos::Mid,
-    Pos::BottomLeft,
-    Pos::BottomRight,
-    Pos::Bottom,
-];
 
 #[derive(Clone, Debug)]
 struct Sequence {
@@ -39,7 +27,6 @@ impl Sequence {
         }
     }
 }
-
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 enum Signal {
@@ -64,7 +51,7 @@ impl Signal {
                 'e' => Signal::E,
                 'f' => Signal::F,
                 'g' => Signal::G,
-                x => panic!("Unknown signal"),
+                x => panic!("Unknown signal {:?}", x),
             });
         }
         signals
@@ -80,7 +67,6 @@ static SIGNAL_VARIANTS: &[Signal] = &[
     Signal::F,
     Signal::G,
 ];
-
 
 #[derive(Debug, Clone)]
 struct SignalMapping {
@@ -122,36 +108,22 @@ impl SignalMapping {
 
         // 7 - 1 == Top
         mapping.store(
-            *digit_7
-                .signals
-                .difference(&digit_1.signals)
+            *(&digit_7.signals - &digit_1.signals)
+                .iter()
                 .next()
                 .expect("storing top"),
             Pos::Top,
         );
         // 8 - (9, 6, 0(len 6)) == (BL, M, TR) (Membership in 1 == TR, which also gives BR)
-        let mut unknown_6_diff_with_8 = HashSet::new();
+        let mut unknown_6_diff_with_8: HashSet<Signal> = HashSet::new();
         for digit in digits_length_6 {
-            unknown_6_diff_with_8 = unknown_6_diff_with_8
-                .union(
-                    &digit_8
-                        .signals
-                        .difference(&digit.signals)
-                        .cloned()
-                        .collect::<HashSet<Signal>>(),
-                )
-                .cloned()
-                .collect::<HashSet<Signal>>();
+            unknown_6_diff_with_8 = &unknown_6_diff_with_8 | &(&digit_8.signals - &digit.signals);
         }
-        let only_tr = unknown_6_diff_with_8
-            .intersection(&digit_1.signals)
-            .cloned()
-            .collect::<HashSet<Signal>>();
+        let only_tr = &unknown_6_diff_with_8 & &digit_1.signals;
 
         mapping.store(
-            *digit_1
-                .signals
-                .difference(&only_tr)
+            *(&digit_1.signals - &only_tr)
+                .iter()
                 .next()
                 .expect("storing br"),
             Pos::BottomRight,
@@ -161,50 +133,32 @@ impl SignalMapping {
         // Found (T, TR, BR)
         // 4 - 1 => (TL, M)
         // (4 - 1) Intersect (8 - (9, 6, 0)) => (M) and by association (TL)
-        let tl_and_m = digit_4
-            .signals
-            .difference(&digit_1.signals)
-            .cloned()
-            .collect::<HashSet<Signal>>();
-        let only_m = tl_and_m
-            .intersection(&unknown_6_diff_with_8)
-            .cloned()
-            .collect::<HashSet<Signal>>();
-        let tl = tl_and_m
-            .difference(&only_m)
-            .cloned()
-            .collect::<HashSet<Signal>>();
+        let tl_and_m = &digit_4.signals - &digit_1.signals;
+        let only_m = &tl_and_m & &unknown_6_diff_with_8;
+        let tl = &tl_and_m - &only_m;
 
         mapping.store(*only_m.iter().next().expect("Storing M"), Pos::Mid);
         mapping.store(*tl.iter().next().expect("Storing TL"), Pos::TopLeft);
 
         // Found (T, TR, TL, M, BR)
-        // (Int(5s) - 7) - 4 = B, last one is BL
+        // (Int(5s) - 7) - 4 = B
         let digits_length_5 = inputs.iter().filter(|x| x.signals.len() == 5);
         let mut intersection_of_5s: Option<HashSet<Signal>> = None;
         for digit in digits_length_5 {
             intersection_of_5s = match intersection_of_5s {
                 None => Some(digit.signals.clone()),
-                Some(signals) => Some(
-                    signals
-                        .intersection(&digit.signals)
-                        .cloned()
-                        .collect::<HashSet<Signal>>(),
-                ),
+                Some(signals) => Some(&signals & &digit.signals),
             }
         }
         mapping.store(
-            *intersection_of_5s
-                .expect("finding 5s")
-                .difference(&digit_7.signals)
-                .cloned()
-                .collect::<HashSet<Signal>>()
-                .difference(&digit_4.signals)
+            *(&(&intersection_of_5s.expect("finding 5s") - &digit_7.signals) - &digit_4.signals)
+                .iter()
                 .next()
                 .expect("Storing B"),
             Pos::Bottom,
         );
-        // B is present in all 5s.
+
+        // I'm bored of set arithmetic, just loop through the signals to find the untaken one.
         for signal in SIGNAL_VARIANTS {
             if let None = mapping.state.get(signal) {
                 mapping.store(*signal, Pos::BottomLeft);
@@ -238,7 +192,6 @@ fn slow_reverse_lookup(inputs: HashSet<Pos>) -> Result<u8> {
     Err(anyhow!("set not found {:?}", inputs))
 }
 
-
 fn translate(input: HashSet<Signal>, mapping: &SignalMapping) -> Result<HashSet<Pos>> {
     let mut output = HashSet::new();
     for i in input {
@@ -270,7 +223,6 @@ fn read_input() -> Result<Vec<(Vec<Sequence>, Vec<Sequence>)>> {
         .collect::<Vec<(Vec<Sequence>, Vec<Sequence>)>>())
 }
 
-
 fn main() -> Result<()> {
     let entry_pairs = read_input()?;
     // Part 1
@@ -291,7 +243,7 @@ fn main() -> Result<()> {
     let mut total = 0;
     for (signals, outputs) in entry_pairs {
         let mapping = SignalMapping::from_inputs(signals);
-	// lol
+        // lol
         let exp: Vec<usize> = vec![1000, 100, 10, 1];
         for (idx, output) in outputs.iter().enumerate() {
             let digit = slow_reverse_lookup(translate(output.clone().signals, &mapping)?)?;
