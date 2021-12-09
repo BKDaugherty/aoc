@@ -5,10 +5,41 @@ use std::io;
 use std::io::BufRead;
 use std::iter::FromIterator;
 
+#[derive(Clone, Copy, PartialEq, Hash, Eq, Debug)]
+enum Pos {
+    Top,
+    TopLeft,
+    TopRight,
+    Mid,
+    BottomLeft,
+    BottomRight,
+    Bottom,
+}
+
+
+static POS_VARIANTS: &[Pos] = &[
+    Pos::Top,
+    Pos::TopLeft,
+    Pos::TopRight,
+    Pos::Mid,
+    Pos::BottomLeft,
+    Pos::BottomRight,
+    Pos::Bottom,
+];
+
 #[derive(Clone, Debug)]
 struct Sequence {
     pub signals: HashSet<Signal>,
 }
+
+impl Sequence {
+    fn from_string(literal: String) -> Self {
+        Self {
+            signals: Signal::from_literal(literal),
+        }
+    }
+}
+
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 enum Signal {
@@ -20,6 +51,36 @@ enum Signal {
     F,
     G,
 }
+
+impl Signal {
+    fn from_literal(literal: String) -> HashSet<Signal> {
+        let mut signals = HashSet::new();
+        for c in literal.chars() {
+            signals.insert(match c {
+                'a' => Signal::A,
+                'b' => Signal::B,
+                'c' => Signal::C,
+                'd' => Signal::D,
+                'e' => Signal::E,
+                'f' => Signal::F,
+                'g' => Signal::G,
+                x => panic!("Unknown signal"),
+            });
+        }
+        signals
+    }
+}
+
+static SIGNAL_VARIANTS: &[Signal] = &[
+    Signal::A,
+    Signal::B,
+    Signal::C,
+    Signal::D,
+    Signal::E,
+    Signal::F,
+    Signal::G,
+];
+
 
 #[derive(Debug, Clone)]
 struct SignalMapping {
@@ -153,35 +214,6 @@ impl SignalMapping {
     }
 }
 
-static SIGNAL_VARIANTS: &[Signal] = &[
-    Signal::A,
-    Signal::B,
-    Signal::C,
-    Signal::D,
-    Signal::E,
-    Signal::F,
-    Signal::G,
-];
-
-impl Signal {
-    fn from_literal(literal: String) -> HashSet<Signal> {
-        let mut signals = HashSet::new();
-        for c in literal.chars() {
-            signals.insert(match c {
-                'a' => Signal::A,
-                'b' => Signal::B,
-                'c' => Signal::C,
-                'd' => Signal::D,
-                'e' => Signal::E,
-                'f' => Signal::F,
-                'g' => Signal::G,
-                x => panic!("Unknown signal"),
-            });
-        }
-        signals
-    }
-}
-
 fn get_digit_map() -> HashMap<u8, HashSet<Pos>> {
     hashmap!(
     0 => hashset!(Pos::Top, Pos::TopRight, Pos::TopLeft, Pos::BottomLeft, Pos::Bottom, Pos::BottomRight),
@@ -196,26 +228,16 @@ fn get_digit_map() -> HashMap<u8, HashSet<Pos>> {
     9 => hashset!(Pos::Top, Pos::TopLeft, Pos::TopRight, Pos::Mid, Pos::BottomRight, Pos::Bottom))
 }
 
-static POS_VARIANTS: &[Pos] = &[
-    Pos::Top,
-    Pos::TopLeft,
-    Pos::TopRight,
-    Pos::Mid,
-    Pos::BottomLeft,
-    Pos::BottomRight,
-    Pos::Bottom,
-];
-
-#[derive(Clone, Copy, PartialEq, Hash, Eq, Debug)]
-enum Pos {
-    Top,
-    TopLeft,
-    TopRight,
-    Mid,
-    BottomLeft,
-    BottomRight,
-    Bottom,
+fn slow_reverse_lookup(inputs: HashSet<Pos>) -> Result<u8> {
+    let mapping = get_digit_map();
+    for (idx, set) in mapping {
+        if set == inputs {
+            return Ok(idx);
+        }
+    }
+    Err(anyhow!("set not found {:?}", inputs))
 }
+
 
 fn translate(input: HashSet<Signal>, mapping: &SignalMapping) -> Result<HashSet<Pos>> {
     let mut output = HashSet::new();
@@ -228,14 +250,6 @@ fn translate(input: HashSet<Signal>, mapping: &SignalMapping) -> Result<HashSet<
         );
     }
     Ok(output)
-}
-
-impl Sequence {
-    fn from_string(literal: String) -> Self {
-        Self {
-            signals: Signal::from_literal(literal),
-        }
-    }
 }
 
 fn read_input() -> Result<Vec<(Vec<Sequence>, Vec<Sequence>)>> {
@@ -256,15 +270,6 @@ fn read_input() -> Result<Vec<(Vec<Sequence>, Vec<Sequence>)>> {
         .collect::<Vec<(Vec<Sequence>, Vec<Sequence>)>>())
 }
 
-fn slow_reverse_lookup(inputs: HashSet<Pos>) -> Result<u8> {
-    let mapping = get_digit_map();
-    for (idx, set) in mapping {
-        if set == inputs {
-            return Ok(idx);
-        }
-    }
-    Err(anyhow!("set not found {:?}", inputs))
-}
 
 fn main() -> Result<()> {
     let entry_pairs = read_input()?;
@@ -286,6 +291,7 @@ fn main() -> Result<()> {
     let mut total = 0;
     for (signals, outputs) in entry_pairs {
         let mapping = SignalMapping::from_inputs(signals);
+	// lol
         let exp: Vec<usize> = vec![1000, 100, 10, 1];
         for (idx, output) in outputs.iter().enumerate() {
             let digit = slow_reverse_lookup(translate(output.clone().signals, &mapping)?)?;
