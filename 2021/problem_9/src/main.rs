@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use grid::{Grid, Point};
 use maplit::{hashmap, hashset};
 use std::collections::{HashMap, HashSet};
 use std::io;
@@ -18,34 +19,7 @@ fn read_input() -> Result<Grid> {
             heatmap.push(c.to_digit(10).expect("Should be digit") as usize);
         }
     }
-    Ok(Grid { storage: heatmap })
-}
-
-struct Grid {
-    storage: Vec<usize>,
-}
-
-#[derive(Debug, Hash, PartialEq, Eq, Clone)]
-struct Point {
-    x: isize,
-    y: isize,
-    value: usize,
-}
-
-impl Grid {
-    fn access(&self, x: isize, y: isize) -> Option<usize> {
-        if x >= X_SIZE || y >= Y_SIZE || x < 0 || y < 0 {
-            None
-        } else {
-            Some(self.storage[(y * X_SIZE + x) as usize])
-        }
-    }
-    fn get_point(&self, x: isize, y: isize) -> Option<Point> {
-        match self.access(x, y) {
-            Some(value) => Some(Point { x, y, value }),
-            None => None,
-        }
-    }
+    Ok(Grid { storage: heatmap, height: Y_SIZE as usize, length: X_SIZE as usize})
 }
 
 fn main() -> Result<()> {

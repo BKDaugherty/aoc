@@ -1,5 +1,5 @@
 [package]
-name = "problem_9"
+name = "grid"
 version = "0.1.0"
 edition = "2018"
 
@@ -7,7 +7,3 @@ edition = "2018"
 
 [dependencies]
 anyhow = "^1.0.25"
-grid = { path = "../grid" }
-lazy_static = "1.4"
-maplit = "1.0"
-regex = "1"
