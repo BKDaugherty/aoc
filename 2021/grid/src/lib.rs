@@ -16,6 +16,12 @@ pub struct Point {
     pub value: usize,
 }
 
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Ord, PartialOrd)]
+pub struct Index {
+    pub x: isize,
+    pub y: isize,
+}
+
 impl Grid {
     pub fn from_stdin(length: usize, height: usize) -> Result<Grid> {
         let stdin = io::stdin();
@@ -80,5 +86,30 @@ impl Grid {
         } else {
             Some((y * self.length as isize + x) as usize)
         }
+    }
+
+    pub fn get(&self, index: &Index) -> Option<usize> {
+        self.access(index.x, index.y)
+    }
+
+    pub fn neighbors(&self, index: &Index) -> Vec<Index> {
+        let mut to_return = Vec::new();
+        for x in [-1, 1] {
+            if self.storage_index(index.x + x, index.y).is_some() {
+                to_return.push(Index {
+                    x: index.x + x,
+                    y: index.y,
+                });
+            }
+        }
+        for y in [-1, 1] {
+            if self.storage_index(index.x, index.y + y).is_some() {
+                to_return.push(Index {
+                    x: index.x,
+                    y: index.y + y,
+                });
+            }
+        }
+        to_return
     }
 }
