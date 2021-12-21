@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use env_logger::Env;
 use std::io;
 use std::iter::{FromIterator, IntoIterator};
@@ -16,8 +16,20 @@ struct PacketLiteral {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+enum Operator {
+    Sum,
+    Product,
+    Min,
+    Max,
+    Gt,
+    Lt,
+    Equal,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct PacketOperator {
     packet_version: usize,
+    packet_operator_type: Operator,
     subpackets: Vec<Packet>,
 }
 
@@ -55,10 +67,23 @@ fn parse_packet_literal(
 
 fn parse_packet_operator(
     packet_version: usize,
+    opcode: usize,
     vals: &mut impl Iterator<Item = char>,
 ) -> Result<PacketOperator> {
     let packet_length = usize::from_str_radix(&String::from_iter(vals.take(1)), 2)?;
     let mut packets = Vec::new();
+
+    let operator = match opcode {
+        0 => Operator::Sum,
+        1 => Operator::Product,
+        2 => Operator::Min,
+        3 => Operator::Max,
+        5 => Operator::Gt,
+        6 => Operator::Lt,
+        7 => Operator::Equal,
+        _ => return Err(anyhow!("unknown opcode")),
+    };
+
     match packet_length {
         0 => {
             let packet_bit_length = usize::from_str_radix(&String::from_iter(vals.take(15)), 2)?;
@@ -83,6 +108,7 @@ fn parse_packet_operator(
 
     Ok(PacketOperator {
         subpackets: packets,
+        packet_operator_type: operator,
         packet_version,
     })
 }
@@ -93,7 +119,7 @@ fn parse_packet(vals: &mut impl Iterator<Item = char>) -> Result<Packet> {
     let packet_type = usize::from_str_radix(&String::from_iter(vals.take(3)), 2)?;
     let packet = match packet_type {
         4 => Packet::Literal(parse_packet_literal(packet_version, vals)?),
-        _ => Packet::Operator(parse_packet_operator(packet_version, vals)?),
+        opcode => Packet::Operator(parse_packet_operator(packet_version, opcode, vals)?),
     };
     Ok(packet)
 }
@@ -139,6 +165,7 @@ mod tests {
             packet,
             Packet::Operator(PacketOperator {
                 packet_version: 1,
+                packet_operator_type: Operator::Gt,
                 subpackets: vec!(
                     Packet::Literal(PacketLiteral {
                         packet_version: 6,
@@ -155,15 +182,37 @@ mod tests {
     }
 }
 
-fn add_versions(packet: Packet) -> usize {
+fn add_versions(packet: &Packet) -> usize {
     match packet {
         Packet::Literal(literal) => literal.packet_version,
         Packet::Operator(op) => {
             let mut total = op.packet_version;
-            for subpacket in op.subpackets {
+            for subpacket in &op.subpackets {
                 total += add_versions(subpacket);
             }
             total
+        }
+    }
+}
+
+fn evaluate_packet(packet: &Packet) -> usize {
+    match packet {
+        Packet::Literal(literal) => literal.value,
+        Packet::Operator(operator) => {
+            let sub_exprs: Vec<usize> = operator
+                .subpackets
+                .iter()
+                .map(|p| evaluate_packet(p))
+                .collect();
+            match operator.packet_operator_type {
+                Operator::Sum => sub_exprs.iter().sum(),
+                Operator::Product => sub_exprs.iter().product(),
+                Operator::Min => *sub_exprs.iter().min().unwrap(),
+                Operator::Max => *sub_exprs.iter().max().unwrap(),
+                Operator::Gt => (sub_exprs[0] > sub_exprs[1]) as usize,
+                Operator::Lt => (sub_exprs[0] < sub_exprs[1]) as usize,
+                Operator::Equal => (sub_exprs[0] == sub_exprs[1]) as usize,
+            }
         }
     }
 }
@@ -198,6 +247,10 @@ fn main() -> Result<()> {
     }
 
     let packet = from_literal(binary_string)?;
-    println!("Versions: {}", add_versions(packet));
+    println!("Versions: {}", add_versions(&packet));
+
+    let result = evaluate_packet(&packet);
+    println!("Result: {}", result);
+
     Ok(())
 }
