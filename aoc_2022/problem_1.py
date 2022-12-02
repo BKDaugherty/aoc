@@ -28,7 +28,7 @@ def parse_input(items: list[str]) -> dict[ElfId, list[FoodItem]]:
             elf_index += 1
             elves_to_calories[elf_index] = []
         else:
-            elves_to_calories[elf_index].append(FoodItem(float(line)))
+            elves_to_calories[ElfId(elf_index)].append(FoodItem(float(line)))
     return elves_to_calories
 
 
