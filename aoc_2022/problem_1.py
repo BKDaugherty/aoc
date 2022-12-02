@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import sys
-from typing import IO, NewType
+from typing import IO
 
 
 ElfId = int
