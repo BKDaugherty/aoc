@@ -32,18 +32,31 @@ def parse_input(items: list[str]) -> dict[ElfId, list[FoodItem]]:
     return elves_to_calories
 
 
-# Find the argmax of the dictionary
-def find_max_calories(elves_to_calories: dict[ElfId, list[FoodItem]]) -> float:
-    calories_per_elf = {
+def get_calories_per_elf(elves_to_calories: dict[ElfId, list[FoodItem]]) -> dict[ElfId, float]:
+    return {
         elf_id: sum([food_item.calorie_count for food_item in food_items])
         for elf_id, food_items in elves_to_calories.items()
     }
+
+
+# Find the argmax of the dictionary
+def find_max_calories(elves_to_calories: dict[ElfId, list[FoodItem]]) -> float:
+    calories_per_elf = get_calories_per_elf(elves_to_calories)
     return max(calories_per_elf.values())
+
+
+def find_calories_in_n_top_elves(elves_to_calories: dict[ElfId, list[FoodItem]], n: int) -> float:
+    if n > len(elves_to_calories.keys()):
+        raise RuntimeError("N is greater than the number of elves!")
+    elf_calories = get_calories_per_elf(elves_to_calories).values()
+    target_elf_calories = sorted(elf_calories)[-n:]
+    return sum(target_elf_calories)
 
 
 if __name__ == "__main__":
     input_data = load_input(sys.stdin)
     elves_to_calories = parse_input(input_data)
-    max_calories = find_max_calories(elves_to_calories)
-    print(f"Max Calories: {max_calories}")
+    n = 3
+    max_calories = find_calories_in_n_top_elves(elves_to_calories, n)
+    print(f"Total Calories in top {n} elves : {max_calories}")
     
