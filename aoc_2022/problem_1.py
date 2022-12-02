@@ -3,7 +3,7 @@ import sys
 from typing import IO, NewType
 
 
-ElfId = NewType("ElfId", int)
+ElfId = int
 
 
 @dataclass
@@ -21,8 +21,8 @@ def load_input(fd: IO[str]) -> list[str]:
 
 # Parse through the input and load into a list of food items that each elf is carrying
 def parse_input(items: list[str]) -> dict[ElfId, list[FoodItem]]:
-    elf_index = 0
-    elves_to_calories = {elf_index: []}
+    elf_index = ElfId(0)
+    elves_to_calories: dict[ElfId, list[FoodItem]] = {elf_index: []}
     for line in items:
         if line == "":
             elf_index += 1
@@ -32,7 +32,9 @@ def parse_input(items: list[str]) -> dict[ElfId, list[FoodItem]]:
     return elves_to_calories
 
 
-def get_calories_per_elf(elves_to_calories: dict[ElfId, list[FoodItem]]) -> dict[ElfId, float]:
+def get_calories_per_elf(
+    elves_to_calories: dict[ElfId, list[FoodItem]]
+) -> dict[ElfId, float]:
     return {
         elf_id: sum([food_item.calorie_count for food_item in food_items])
         for elf_id, food_items in elves_to_calories.items()
@@ -45,7 +47,9 @@ def find_max_calories(elves_to_calories: dict[ElfId, list[FoodItem]]) -> float:
     return max(calories_per_elf.values())
 
 
-def find_calories_in_n_top_elves(elves_to_calories: dict[ElfId, list[FoodItem]], n: int) -> float:
+def find_calories_in_n_top_elves(
+    elves_to_calories: dict[ElfId, list[FoodItem]], n: int
+) -> float:
     if n > len(elves_to_calories.keys()):
         raise RuntimeError("N is greater than the number of elves!")
     elf_calories = get_calories_per_elf(elves_to_calories).values()
@@ -59,4 +63,3 @@ if __name__ == "__main__":
     n = 3
     max_calories = find_calories_in_n_top_elves(elves_to_calories, n)
     print(f"Total Calories in top {n} elves : {max_calories}")
-    
